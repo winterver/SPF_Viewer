@@ -28,6 +28,7 @@ static int selected = 0;
 
 static GLuint image;
 static int width, height;
+static int image_has_data = 0;
 
 // https://stackoverflow.com/questions/744766/how-to-compare-ends-of-strings-in-c
 static int EndsWith(const char *str, const char *suffix)
@@ -39,6 +40,24 @@ static int EndsWith(const char *str, const char *suffix)
     if (lensuffix >  lenstr)
         return 0;
     return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
+}
+
+static void ExtractImage(SPF_Entry& ent) {
+    char *l = strrchr(ent.path, '/');
+    *l = 0;
+
+    std::filesystem::create_directories(ent.path);
+    *l = '/';
+
+    std::ifstream in(SPF_Path);
+    std::ofstream out(ent.path);
+    if (in.is_open() && out.is_open()) {
+        in.seekg(ent.offset);
+        char *buf = new char[ent.length];
+        in.read(buf, ent.length);
+        out.write(buf, ent.length);
+        delete [] buf;
+    }
 }
 
 static void ShowTreeWindow() {
@@ -76,6 +95,9 @@ static void ShowTreeWindow() {
         else {
             files.clear();
             selected = 0;
+            image_has_data = 0;
+            glBindTexture(GL_TEXTURE_2D, image);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         }
     }
 
@@ -114,9 +136,11 @@ static void ShowTreeWindow() {
 
         glBindTexture(GL_TEXTURE_2D, image);
         if (data) {
+            image_has_data = 1;
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
         }
         else {
+            image_has_data = 0;
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         }
 
@@ -131,7 +155,15 @@ static void ShowImageWindow() {
     ImGui::SetNextWindowPos(ImVec2(400, 0), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(500, 600), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Image", nullptr, ImGuiWindowFlags_HorizontalScrollbar)) {
-        ImGui::Image((ImTextureID)(intptr_t)image, ImVec2(width, height));
+        if (image_has_data) {
+            if (ImGui::Button("Extract this image")) {
+                ExtractImage(files[selected]);
+            }
+            ImGui::Image((ImTextureID)(intptr_t)image, ImVec2(width, height));
+        }
+        else {
+            ImGui::Text("No image selected or image not displayable.");
+        }
     }
     ImGui::End();
 }
