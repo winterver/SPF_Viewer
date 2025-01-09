@@ -49,8 +49,8 @@ static void ExtractImage(SPF_Entry& ent) {
     std::filesystem::create_directories(ent.path);
     *l = '/';
 
-    std::ifstream in(SPF_Path);
-    std::ofstream out(ent.path);
+    std::ifstream in(SPF_Path, std::ios::binary);
+    std::ofstream out(ent.path, std::ios::binary);
     if (in.is_open() && out.is_open()) {
         in.seekg(ent.offset);
         char *buf = new char[ent.length];
